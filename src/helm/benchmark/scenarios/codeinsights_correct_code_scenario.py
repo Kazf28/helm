@@ -49,17 +49,21 @@ class CodeInsightsCorrectCodeScenario(Scenario):
 
             prompt = (
                 f"Question: {target['question_name']} — {target['question_text']}\n\n"
-                f"Unit Test Input: {question_test_cases}\n\n"
-                if question_test_cases
-                else ""
                 "Template:\n"
                 f"{target['question_template']}\n\n"
-                "Provide ONLY your C++ implementation following the given template, where the answer will replace the {{ STUDENT_ANSWER }} block in the template. "
-                "DO NOT reproduce the template part as the generated code would be inserted to the template, "
-                "and make sure the code is compatible with the Unit Test Input. "
-                "int main() is always declared already so DO NOT produce that initialization on the code. "
-                "Ensure your code is correct, efficient, includes any class definition when needed, and handles all edge cases properly. "
-                "Return the code in C++ code block format, and nothing else."
+                "Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template."  
+                "– Do NOT reproduce any part of the template"  
+                "– Do NOT emit `int main()` (it’s already declared)"  
+                "– Ensure your code is correct, efficient, handles all edge cases, and includes any needed class definitions"  
+                "IMPORTANT:"  
+                "Your entire response must be exactly one Markdown C++ code-block."  
+                "1. The first line of your output must be:"
+                "```cpp"
+                "2. The last line of your output must be:"
+                "```"
+                "3. No extra characters, whitespace, or text may appear before the opening ```cpp or after the closing ```."  
+                "Your output will therefore match this regex exactly:"
+                "^```cpp\n([\s\S]+)\n```$"
             )
             instances.append(
                 Instance(
