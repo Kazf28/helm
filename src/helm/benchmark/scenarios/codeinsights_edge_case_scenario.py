@@ -124,8 +124,9 @@ class CodeInsightsEdgeCaseScenario(Scenario):
                 "• Which test seems hardest for the given topic?\n"
                 "• Where has the student historically struggled?\n"
                 "• Any edge-cases in the tests’ inputs/outputs?\n\n"
-                "******** ANSWER FORMAT (STRICT) ********\n"
-                "<integer>\n"
+                "******** OUTPUT (STRICT) ********\n"
+                "Respond with **exactly one integer**.\n"
+                "Your **entire** response must be that integer—no code blocks, no explanations, no extra whitespace or punctuation."
                 "****************************************"
             )
 
