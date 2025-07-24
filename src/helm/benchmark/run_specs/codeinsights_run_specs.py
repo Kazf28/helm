@@ -36,7 +36,7 @@ def get_codeinsights_correct_code_run_spec(tpr: float = 0.0, num_testcases: int 
     )
 
     return RunSpec(
-        name=f"codeinsights_correct_code:temperature={adapter_spec.temperature},num_testcases={num_testcases},stop_sequences={sequence}",
+        name=f"codeinsights_correct_code:temperature={adapter_spec.temperature},num_testcases={num_testcases},stop_sequences={stop_sequence}",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
         metric_specs=get_functional_correctness_metric_specs() + get_basic_metric_specs([]),
@@ -71,7 +71,7 @@ def get_codeinsights_student_coding_run_spec(tpr: float = 0.0, num_testcases: in
     )
 
     return RunSpec(
-        name=f"codeinsights_student_coding:temperature={adapter_spec.temperature},num_testcases={num_testcases}",
+        name=f"codeinsights_student_coding:temperature={adapter_spec.temperature},num_testcases={num_testcases}, stop_sequences={stop_sequence}",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
         metric_specs=get_comprehensive_code_evaluation_metric_specs() + get_basic_metric_specs([]),
@@ -104,7 +104,7 @@ def get_codeinsights_student_mistake_run_spec(tpr: float = 0.0, num_testcases: i
     )
 
     return RunSpec(
-        name=f"codeinsights_student_mistake:temperature={adapter_spec.temperature},num_testcases={num_testcases}",
+        name=f"codeinsights_student_mistake:temperature={adapter_spec.temperature},num_testcases={num_testcases},stop_sequences={stop_sequence}",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
         metric_specs=get_comprehensive_code_evaluation_metric_specs() + get_basic_metric_specs([]),
@@ -150,7 +150,7 @@ def get_codeinsights_code_efficiency_run_spec(tpr: float = 0.0, num_testcases: i
     )
 
     return RunSpec(
-        name=f"codeinsights_code_efficiency:temperature={adapter_spec.temperature},num_testcases={num_testcases}",
+        name=f"codeinsights_code_efficiency:temperature={adapter_spec.temperature},num_testcases={num_testcases},stop_sequences={stop_sequence}",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
         metric_specs=get_code_efficiency_metric_specs(
