@@ -1,9 +1,11 @@
-from typing import List
+from typing import List, Dict
 import re
 import os
 import subprocess
 import tempfile
 import shutil
+import requests
+from jinja2 import Template
 
 from helm.benchmark.adaptation.adapter_spec import AdapterSpec
 from helm.benchmark.adaptation.request_state import RequestState
