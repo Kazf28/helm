@@ -41,7 +41,7 @@ class CodeInsightsStudentCodingScenario(Scenario):
                 # examples = all but the idx-th attempt
                 example_rows = [attempts.iloc[i] for i in range(4) if i != idx]
                 target = attempts.iloc[idx]
-
+                question_id = target.get("question_unittest_id", None)
                 # parse the target's test cases
                 question_test_cases = []
                 tc_parsing_success = True
@@ -93,22 +93,22 @@ class CodeInsightsStudentCodingScenario(Scenario):
                     "2. Last line: ```\n"
                     "No extra whitespace or text before/after.\n"
                 )
-            instances.append(
-                Instance(
-                    id=f"{student_id}_{target['question_unittest_id']}",
-                    input=Input(text=prompt),
-                    references=[Reference(output=Output(text=target["response"]), tags=[CORRECT_TAG])],
-                    extra_data={
-                        "question_template": target["question_template"],
-                        "test_cases": question_test_cases,
-                        "question_id": str(question_id) if question_id else None,
-                        "question_name": target.get("question_name", ""),
-                        "student_id": str(student_id),
-                        "student_correctness_pattern": student_correctness_list,
-                    },
-                    split=VALID_SPLIT,
+                instances.append(
+                    Instance(
+                        id=f"{student_id}_{target['question_unittest_id']}",
+                        input=Input(text=prompt),
+                        references=[Reference(output=Output(text=target["response"]), tags=[CORRECT_TAG])],
+                        extra_data={
+                            "question_template": target["question_template"],
+                            "test_cases": question_test_cases,
+                            "question_id": str(question_id) if question_id else None,
+                            "question_name": target.get("question_name", ""),
+                            "student_id": str(student_id),
+                            "student_correctness_pattern": student_correctness_list,
+                        },
+                        split=VALID_SPLIT,
+                    )
                 )
-            )
         return instances
 
     def _load_test_cases(self):

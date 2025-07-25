@@ -46,11 +46,7 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                 examples = [attempts.iloc[i] for i in range(4) if i != idx]
 
                 # 1) skip if no tests available
-                tqid = target.get("question_unittest_id", None)
-                if not tqid or str(tqid) not in available_question_ids:
-                    skipped_no_tests += 1
-                    print(f"SKIPPING Student {student_id}, Question {tqid}: No test cases available")
-                    continue
+                question_id = target.get("question_unittest_id", None)
 
                 # 2) parse test cases
                 question_test_cases = []
@@ -68,7 +64,7 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                     })
                 if not tc_parsing_success:
                     skipped_no_tests += 1
-                    print(f"SKIPPING Student {student_id}, Question {tqid}: Empty test cases")
+                    print(f"SKIPPING Student {student_id}, Question {question_id}: Empty test cases")
                     continue
 
                 # 3) enforce minimum number of cases
@@ -86,7 +82,7 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                     student_correctness_list = []
 
                 # log accepted instance
-                print(f"\n=== ACCEPTED INSTANCE: Student {student_id}, Question {tqid} ===")
+                print(f"\n=== ACCEPTED INSTANCE: Student {student_id}, Question {question_id} ===")
                 print(f"Test cases loaded: {len(question_test_cases)}")
                 print(f"Student correctness pattern: {student_correctness_list}")
                 print(f"Question name: {target.get('question_name', 'MISSING')}")
@@ -121,23 +117,22 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                     "2. Last line: ```\n"
                     "No extra whitespace or text before/after.\n"
                 )
-
-            instances.append(
-                Instance(
-                    id=f"{student_id}_{target['question_unittest_id']}",
-                    input=Input(text=prompt),
-                    references=[Reference(output=Output(text=target["response"]), tags=[CORRECT_TAG])],
-                    extra_data={
-                        "question_template": target["question_template"],
-                        "test_cases": question_test_cases,
-                        "question_id": str(target_question_id),
-                        "question_name": target.get("question_name", ""),
-                        "student_id": str(student_id),
-                        "student_correctness_pattern": student_correctness_list,
-                    },
-                    split=VALID_SPLIT,
+                instances.append(
+                    Instance(
+                        id=f"{student_id}_{target['question_unittest_id']}",
+                        input=Input(text=prompt),
+                        references=[Reference(output=Output(text=target["response"]), tags=[CORRECT_TAG])],
+                        extra_data={
+                            "question_template": target["question_template"],
+                            "test_cases": question_test_cases,
+                            "question_id": str(question_id),
+                            "question_name": target.get("question_name", ""),
+                            "student_id": str(student_id),
+                            "student_correctness_pattern": student_correctness_list,
+                        },
+                        split=VALID_SPLIT,
+                    )
                 )
-            )
 
         # Print summary statistics
         print("\n=== INSTANCE CREATION SUMMARY ===")

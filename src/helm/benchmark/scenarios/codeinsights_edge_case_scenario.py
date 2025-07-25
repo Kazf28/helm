@@ -129,7 +129,7 @@ class CodeInsightsEdgeCaseScenario(Scenario):
                 "Your **entire** response must be that integer—no code blocks, no explanations, no extra whitespace or punctuation."
                 "****************************************"
             )
-
+            
             instances.append(
                 Instance(
                     id=f"{student_id}_{target['question_unittest_id']}",

@@ -43,9 +43,7 @@ class CodeInsightsStudentMistakeScenario(Scenario):
                 examples = [attempts.iloc[i] for i in range(4) if i != idx]
 
                 # skip if no test‐cases available
-                qid = target.get("question_unittest_id")
-                if not qid or str(qid) not in available_question_ids:
-                    continue
+                question_id = target.get("question_unittest_id", None)
 
                 # parse test cases
                 question_test_cases = []
@@ -109,39 +107,39 @@ class CodeInsightsStudentMistakeScenario(Scenario):
                     "No extra characters, whitespace, or text before/after.\n"
                 )
 
-            print(f"\n=== DEBUG INFO FOR STUDENT {student_id}, QUESTION {question_id} ===")
-            print(f"Test cases loaded: {len(question_test_cases)}")
-            print(f"Student correctness pattern: {student_correctness_list}")
-            print(f"Original pass field: {target.get('pass', 'MISSING')}")
-            print(f"Question template exists: {'question_template' in target}")
-            print(f"Question name: {target.get('question_name', 'MISSING')}")
+                print(f"\n=== DEBUG INFO FOR STUDENT {student_id}, QUESTION {question_id} ===")
+                print(f"Test cases loaded: {len(question_test_cases)}")
+                print(f"Student correctness pattern: {student_correctness_list}")
+                print(f"Original pass field: {target.get('pass', 'MISSING')}")
+                print(f"Question template exists: {'question_template' in target}")
+                print(f"Question name: {target.get('question_name', 'MISSING')}")
 
-            # Also add this validation in your UnitTestAlignmentMetric evaluate_generation method:
-            def evaluate_generation(self, adapter_spec, request_state, metric_service, eval_cache_path):
-                print("\n=== UNIT TEST METRIC DEBUG ===")
-                print(f"Has extra_data: {hasattr(request_state.instance, 'extra_data')}")
-                if hasattr(request_state.instance, "extra_data"):
-                    extra_data = request_state.instance.extra_data
-                    print(f"Extra data keys: {list(extra_data.keys())}")
-                    print(f"Test cases: {len(extra_data.get('test_cases', []))}")
-                    print(f"Student pattern: {extra_data.get('student_correctness_pattern', 'MISSING')}")
+                # Also add this validation in your UnitTestAlignmentMetric evaluate_generation method:
+                def evaluate_generation(self, adapter_spec, request_state, metric_service, eval_cache_path):
+                    print("\n=== UNIT TEST METRIC DEBUG ===")
+                    print(f"Has extra_data: {hasattr(request_state.instance, 'extra_data')}")
+                    if hasattr(request_state.instance, "extra_data"):
+                        extra_data = request_state.instance.extra_data
+                        print(f"Extra data keys: {list(extra_data.keys())}")
+                        print(f"Test cases: {len(extra_data.get('test_cases', []))}")
+                        print(f"Student pattern: {extra_data.get('student_correctness_pattern', 'MISSING')}")
 
-            instances.append(
-                Instance(
-                    id=f"{student_id}_{target['question_unittest_id']}",
-                    input=Input(text=prompt),
-                    references=[Reference(output=Output(text=target["response_mistake"]), tags=[CORRECT_TAG])],
-                    extra_data={
-                        "question_template": target["question_template"],
-                        "test_cases": question_test_cases,
-                        "question_id": str(question_id) if question_id else None,
-                        "question_name": target.get("question_name", ""),
-                        "student_id": str(student_id),
-                        "student_correctness_pattern": student_correctness_list,
-                    },
-                    split=VALID_SPLIT,
+                instances.append(
+                    Instance(
+                        id=f"{student_id}_{target['question_unittest_id']}",
+                        input=Input(text=prompt),
+                        references=[Reference(output=Output(text=target["response_mistake"]), tags=[CORRECT_TAG])],
+                        extra_data={
+                            "question_template": target["question_template"],
+                            "test_cases": question_test_cases,
+                            "question_id": str(question_id) if question_id else None,
+                            "question_name": target.get("question_name", ""),
+                            "student_id": str(student_id),
+                            "student_correctness_pattern": student_correctness_list,
+                        },
+                        split=VALID_SPLIT,
+                    )
                 )
-            )
         return instances
 
     def _load_test_cases(self):
