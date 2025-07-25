@@ -30,7 +30,7 @@ def get_codeinsights_correct_code_run_spec(tpr: float = 0.0, num_testcases: int 
     adapter_spec = get_generation_adapter_spec(
         instructions=instruction,
         output_noun="Your code",
-        stop_sequences=[],
+        stop_sequences=['\n```'],
         max_tokens=4000,
         temperature=tpr,
     )
@@ -65,7 +65,7 @@ def get_codeinsights_student_coding_run_spec(tpr: float = 0.0, num_testcases: in
     adapter_spec = get_generation_adapter_spec(
         instructions=instruction,
         output_noun="Your code",
-        stop_sequences=[],
+        stop_sequences=['\n```'],
         max_tokens=4000,
         temperature=tpr,
     )
@@ -98,7 +98,7 @@ def get_codeinsights_student_mistake_run_spec(tpr: float = 0.0, num_testcases: i
     adapter_spec = get_generation_adapter_spec(
         instructions=instruction,
         output_noun="Your code",
-        stop_sequences=[],
+        stop_sequences=['\n```'],
         max_tokens=4000,
         temperature=tpr,
     )
@@ -144,7 +144,7 @@ def get_codeinsights_code_efficiency_run_spec(tpr: float = 0.0, num_testcases: i
     adapter_spec = get_generation_adapter_spec(
         instructions=instruction,
         output_noun="Your code",
-        stop_sequences=[],
+        stop_sequences=['\n```'],
         max_tokens=4000,
         temperature=tpr,
     )
