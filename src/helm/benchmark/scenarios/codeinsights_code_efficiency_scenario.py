@@ -15,18 +15,6 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
     def get_instances(self, output_path: str):
         df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario4_data.csv")
 
-        # Load test cases (unit tests)
-        test_cases = self._load_test_cases()
-
-        # Get available question IDs with test cases
-        available_question_ids = set()
-        if test_cases:
-            available_question_ids = set(test_cases.keys())
-            print(f"Loaded test cases for {len(available_question_ids)} questions")
-        else:
-            print("WARNING: No test cases loaded!")
-            return []
-
         instances = []
         skipped_no_tests = 0
         skipped_insufficient_data = 0
@@ -104,7 +92,6 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                 prompt += (
                     "Now, using that same student's coding style, attempt this:\n"
                     f"Question: {target['question_name']} — {target['question_text']}\n\n"
-                    + (f"Unit Test Input: {question_test_cases}\n\n" if question_test_cases else "")
                     + "Template:\n"
                     f"{target['question_template']}\n\n"
                     "Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template.  "
@@ -151,31 +138,3 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                 print(f"  {inst.id}: {test_count} test cases")
 
         return instances
-
-    def _load_test_cases(self):
-        """
-        Load test cases from external source or return None if not available.
-        This method should be implemented based on where your test cases are stored.
-
-        Expected format:
-        {
-            "question_id": [
-                {
-                    "unittest": "test_id",
-                    "input": "test input code",
-                    "output": "expected output"
-                },
-                ...
-            ],
-            ...
-        }
-        """
-        try:
-            response = requests.get(
-                "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/test_cases_by_qid.json"
-            )
-            if response.status_code == 200:
-                return response.json()
-        except Exception as e:
-            print(f"Failed to load test cases from URL: {e}")
-            return {}

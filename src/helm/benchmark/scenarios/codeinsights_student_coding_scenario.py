@@ -91,7 +91,8 @@ class CodeInsightsStudentCodingScenario(Scenario):
                     "IMPORTANT: your entire response must be exactly one Markdown C++ code‐block:\n"
                     "1. First line: ```cpp\n"
                     "2. Last line: ```\n"
-                    "No extra whitespace or text before/after.\n"
+                    "Your output will therefore match this regex exactly:"
+                    "^```cpp\n([\s\S]+)\n```$"
                 )
                 instances.append(
                     Instance(
@@ -110,31 +111,3 @@ class CodeInsightsStudentCodingScenario(Scenario):
                     )
                 )
         return instances
-
-    def _load_test_cases(self):
-        """
-        Load test cases from external source or return None if not available.
-        This method should be implemented based on where your test cases are stored.
-
-        Expected format:
-        {
-            "question_id": [
-                {
-                    "unittest": "test_id",
-                    "input": "test input code",
-                    "output": "expected output"
-                },
-                ...
-            ],
-            ...
-        }
-        """
-        try:
-            response = requests.get(
-                "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/test_cases_by_qid.json"
-            )
-            if response.status_code == 200:
-                return response.json()
-        except Exception as e:
-            print(f"Failed to load test cases from URL: {e}")
-            return {}
