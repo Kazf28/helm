@@ -160,40 +160,25 @@ class CPPEvaluator:
             List[str]: A list of C++ code snippets with the student's answer and test cases inserted.
         """
         # Insert the student's answer and test cases into the template
-        code = self.template.replace("{{ STUDENT_ANSWER }}", student_answer)
+        # 1) strip any ```cpp ... ``` markdown fences
+        student_answer = re.sub(r"^```cpp\s*|\s*```$", "", student_answer)
 
-        # Find the for loop in the template
-        start_index = code.find("{% for TEST in TESTCASES %}")
-        end_index = code.find("{% endfor %}") + len("{% endfor %}")
+        # 2) compile the Jinja2 template once
+        j2 = Template(self.template)
 
-        list_codes = []
-        for testcase in self.formatted_testcases:
-            # Insert the test case code into the template between the for loop
-            testcode = code[:start_index] + testcase["testcode"] + code[end_index:]
-            list_codes.append(testcode)
+        rendered_codes: List[str] = []
+        for tc in self.formatted_testcases:
+            # we render TESTCASES as a single‑element list so the loop
+            # unrolls exactly once for this one testcase
+            tc["testcode"] = tc["testcode"].replace("STD input:", "").strip()
+            code = j2.render(
+                STUDENT_ANSWER=student_answer,
+                TESTCASES=[tc]
+            )
+            rendered_codes.append(code)
 
-        return list_codes
+        return rendered_codes
 
-    def write_and_compile_code(self, codes):
-        """Writes and compiles the C++ code.
-
-        Args:
-            codes (List[str]): A list of C++ code snippets.
-
-        Returns:
-            Tuple[List[str], str]: A tuple containing the list of executable paths and the temporary directory.
-        """
-        # Write the C++ code to a temporary file
-        temp_dir = tempfile.mkdtemp()
-        for i, code in enumerate(codes):
-            cpp_file = os.path.join(temp_dir, f"tc_{i}.cpp")
-            with open(cpp_file, "w") as file:
-                file.write(code)
-
-        # Compile the C++ code
-        executables = parallel_compile(codes, temp_dir, timeout=self.timeout, max_workers=self.max_workers)
-
-        return executables, temp_dir
 
     def evaluate(self, student_answer):
         """Evaluates the student's answer using the test cases.
@@ -207,39 +192,55 @@ class CPPEvaluator:
         # Generate the C++ code with the student's answer
         codes = self.generate_code(student_answer)
 
-        # Write and compile the C++ code
-        executables, temp_dir = self.write_and_compile_code(codes)
-        list_result = []
+        results = []
 
-        executation_results = parallel_run_executables(
-            executables, self.std_inputs, timeout=self.timeout, max_workers=self.max_workers
-        )
-        for i, testcase in enumerate(self.testcases):
-            if executation_results[i][0] != 0:
-                list_result.append(0)
-                continue
+        # For each rendered snippet, compile & run it in a temp dir:
+        for i, (code, testcase, std_in) in enumerate(zip(codes, self.testcases, self.std_inputs)):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                cpp_path = os.path.join(tmpdir, "test.cpp")
+                exe_path = os.path.join(tmpdir, "test")
 
-            expected_output = testcase["output"]
-            student_output = executation_results[i][1]
-            if expected_output.strip() != student_output.strip():
-                list_result.append(0)
-            else:
-                list_result.append(1)
+                with open(cpp_path, "w") as f:
+                    f.write(code)
 
-        # Delete the temporary directory
-        try:
-            shutil.rmtree(temp_dir)
-        except OSError as e:
-            print("Error: %s - %s." % (e.filename, e.strerror))
+                # 1) compile
+                cp = subprocess.run(
+                    ["g++", "-std=c++17", cpp_path, "-o", exe_path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=self.timeout + 2,
+                )
+                if cp.returncode != 0:
+                    # compilation error -> fail this test
+                    results.append(0)
+                    continue
 
-        if len(list_result) == 0:
-            return {"score": 0, "testcases": list_result}
+                # 2) run
+                rp = subprocess.run(
+                    [exe_path],
+                    input=std_in,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=self.timeout + 2,
+                )
+                if rp.returncode != 0:
+                    # runtime error -> fail
+                    results.append(0)
+                    continue
 
-        return {
-            "score": sum(list_result) / len(list_result),
-            "testcases": list_result,
-        }
+                # 3) compare
+                expected = testcase["output"].strip()
+                got      = rp.stdout.strip()
+                results.append(1 if expected == got else 0)
 
+        if not results:
+            score = 0.0
+        else:
+            score = sum(results) / len(results)
+
+        return {"score": score, "testcases": results}
 
 class CodeInsightsFunctionalCorrectnessMetric(Metric):
     """
@@ -266,7 +267,7 @@ class CodeInsightsFunctionalCorrectnessMetric(Metric):
         self.timeout = timeout
         self.max_workers = max_workers
 
-    def evaluate_generation(
+    def d(
         self,
         adapter_spec: AdapterSpec,
         request_state: RequestState,
