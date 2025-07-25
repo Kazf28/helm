@@ -20,116 +20,94 @@ class CodeInsightsStudentMistakeScenario(Scenario):
 
         instances = []
         for student_id, student_df in df.groupby("student_id"):
+            # sort by student, question, then time
             student_df = student_df.sort_values(by=["student_id", "question_unittest_id", "timestamp"])
             if len(student_df) < 4:
                 continue
-            first = student_df.iloc[0]
-            second = student_df.iloc[1]
-            third = student_df.iloc[2]
-            target = student_df.iloc[3]
 
-            # Get test cases for this question
-            question_id = target.get("question_unittest_id", None)
-            question_test_cases = []
-            tc_parsing_success = True
+            # grab exactly the first 4 attempts
+            attempts = student_df.iloc[:4]
 
-            for testcase_str in target["question_unittests"].split("Unittest")[1:]:
-                testcase_str = testcase_str[testcase_str.find(":") + 1 :]
-                input_idx = testcase_str.find("Input:")
-                std_in_idx = testcase_str.find("STD input:")
-                output_idx = testcase_str.find("Output:")
-                if input_idx == -1 or std_in_idx == -1 or output_idx == -1:
-                    tc_parsing_success = False
-                    break
-
-                testcase = {
-                    "input": testcase_str[input_idx + 6 : std_in_idx].strip(),
-                    "std_in": testcase_str[std_in_idx + 10 : output_idx].strip(),
-                    "output": testcase_str[output_idx + 7 :].strip(),
-                }
-                question_test_cases.append(testcase)
-
-            if not tc_parsing_success:
-                continue
-
-            if len(question_test_cases) < self.num_testcases:
-                # If not enough test cases, skip this question
-                continue
-            if self.num_testcases >= 0:
-                # If more than one test case is requested, only take the first ones
-                question_test_cases = question_test_cases[: self.num_testcases]
-
-            # Get student pass (0 or 1) for the target question
-            student_correctness_pattern = target.get("pass", None)
-            main_part = int(student_correctness_pattern)  # "1111111111"
-            # Convert each character to an int
-            student_correctness_list = [int(ch) for ch in str(main_part)]  # [1,1,1,1,1,1,1,1,1,1]
-
-            # Student specific topic performance in previous attempts
+            # build the student‐level summary once
             student_level_prompt = f"Student {student_id} has the following performance across topics:\n"
             topic_performance = student_topic[student_topic["student_id"] == student_id]
             for _, row in topic_performance.iterrows():
-                topic = row["topic"]
-                pass_rate = round(row["pass_rate"], 2)
-                perfect = round(row["perfect"], 2)
-
                 student_level_prompt += (
-                    f"- For topic '{topic}', the unit test pass rate is {pass_rate}, "
-                    f"and the rate of passing all unit tests is {perfect}.\n"
+                    f"- For topic '{row['topic']}', the unit test pass rate is "
+                    f"{row['pass_rate']:.2f}, and the rate of passing all unit tests is {row['perfect']:.2f}.\n"
                 )
 
-            prompt = (
-                "=== Student Profile ===\n"
-                f"{student_level_prompt}\n"
-                "When students submit a code to the platform, it will be tested by number of unit tests, where"
-                "- Unit test pass rate = proportion of unit tests passed with the code \n"
-                "- Full pass rate   = proportion of code passing all unit tests\n\n"
-                "=== Past Mistake Examples ===\n"
-                "Example 1 (Week {first['week']}, Topic: {first['topic']}):\n"
-                f"Question: {first['question_name']} — {first['question_text']}\n"
-                "Template:\n"
-                f"{first['question_template']}\n"
-                "Student's Response Code with Error:\n"
-                f"{first['response_mistake']}\n\n"
-                "Example 2 (Week {second['week']}, Topic: {second['topic']}):\n"
-                f"Question: {second['question_name']} — {second['question_text']}\n"
-                "Template:\n"
-                f"{second['question_template']}\n"
-                "Student's Response Code with Error:\n"
-                f"{second['response_mistake']}\n\n"
-                "Example 3 (Week {third['week']}, Topic: {third['topic']}):\n"
-                f"Question: {third['question_name']} — {third['question_text']}\n"
-                "Template:\n"
-                f"{third['question_template']}\n"
-                "Student's Response Code with Error:\n"
-                f"{third['response_mistake']}\n\n"
-                "=== New Target Problem ===\n"
-                f"Week: {target['week']}, Topic: {target['topic']}\n"
-                f"Question: {target['question_name']} — {target['question_text']}\n"
-                f"Unit Test Input: {question_test_cases}\n\n"
-                if question_test_cases
-                else ""
-                "Template:\n"
-                f"{target['question_template']}\n\n"
-                "⚠**Instructions:**\n"
-                "1. Mimic your own coding style, naming conventions, indentation, and typical error patterns from the examples.\n"
-                "2. Introduce mistake you are likely to make (e.g., off‐by‐one index, wrong initialization, "
-                "missing edge case).\n"
-                "3. Do **not** produce a fully correct solution or add unfamiliar optimizations.\n\n"
-                "4. Include any needed class definitions, and make sure the code is compatible with the Unit Test Input."
-                "5. Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template."  
-                "6. Do NOT reproduce any part of the template"  
-                "7. Do NOT emit `int main()` (it’s already declared)"  
-                "IMPORTANT:"  
-                "Your entire response must be exactly one Markdown C++ code-block."  
-                "1. The first line of your output must be:"
-                "```cpp"
-                "2. The last line of your output must be:"
-                "```"
-                "3. No extra characters, whitespace, or text may appear before the opening ```cpp or after the closing ```."  
-                "Your output will therefore match this regex exactly:"
-                "^```cpp\n([\s\S]+)\n```$"
-            )
+            # rotate so each of the 4 becomes the “target” once
+            for idx in range(4):
+                target   = attempts.iloc[idx]
+                examples = [attempts.iloc[i] for i in range(4) if i != idx]
+
+                # skip if no test‐cases available
+                qid = target.get("question_unittest_id")
+                if not qid or str(qid) not in available_question_ids:
+                    continue
+
+                # parse test cases
+                question_test_cases = []
+                tc_success = True
+                for s in target["question_unittests"].split("Unittest")[1:]:
+                    body = s[s.find(":")+1:]
+                    i1, i2, i3 = body.find("Input:"), body.find("STD input:"), body.find("Output:")
+                    if -1 in (i1, i2, i3):
+                        tc_success = False
+                        break
+                    question_test_cases.append({
+                        "input":  body[i1+6 : i2].strip(),
+                        "std_in": body[i2+10: i3].strip(),
+                        "output": body[i3+7 :].strip(),
+                    })
+                if not tc_success or len(question_test_cases) < self.num_testcases:
+                    continue
+                if self.num_testcases >= 0:
+                    question_test_cases = question_test_cases[: self.num_testcases]
+
+                # parse correctness (not used in prompt here, but you can log it)
+                pat = target.get("pass")
+                student_correctness_list = [int(ch) for ch in str(int(pat))] if pat else []
+
+                # build the few‐shot + target prompt
+                prompt = (
+                    "=== Student Profile ===\n"
+                    f"{student_level_prompt}\n"
+                    "When students submit a code to the platform, it will be tested by number of unit tests, where\n"
+                    "- Unit test pass rate = proportion of unit tests passed with the code\n"
+                    "- Full pass rate   = proportion of code passing all unit tests\n\n"
+                    "=== Past Mistake Examples ===\n"
+                )
+                for n, ex in enumerate(examples, start=1):
+                    prompt += (
+                        f"Example {n} (Week {ex['week']}, Topic: {ex['topic']}):\n"
+                        f"Question: {ex['question_name']} — {ex['question_text']}\n"
+                        "Template:\n"
+                        f"{ex['question_template']}\n"
+                        "Student's Response Code with Error:\n"
+                        f"{ex['response_mistake']}\n\n"
+                    )
+                prompt += (
+                    "=== New Target Problem ===\n"
+                    f"Week: {target['week']}, Topic: {target['topic']}\n"
+                    f"Question: {target['question_name']} — {target['question_text']}\n"
+                    + (f"Unit Test Input: {question_test_cases}\n\n" if question_test_cases else "")
+                    + "Template:\n"
+                    f"{target['question_template']}\n\n"
+                    "⚠**Instructions:**\n"
+                    "1. Mimic your own coding style, naming conventions, indentation, and typical error patterns from the examples.\n"
+                    "2. Introduce a mistake you are likely to make (e.g., off‑by‑one index, wrong initialization, missing edge case).\n"
+                    "3. Do **not** produce a fully correct solution or add unfamiliar optimizations.\n\n"
+                    "4. Include any needed class definitions, and make sure the code is compatible with the Unit Test Input.\n"
+                    "5. Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template.\n"
+                    "6. Do NOT reproduce any part of the template.\n"
+                    "7. Do NOT emit `int main()` (it’s already declared).\n\n"
+                    "IMPORTANT: your entire response must be exactly one Markdown C++ code‑block:\n"
+                    "1. First line: ```cpp\n"
+                    "2. Last line: ```\n"
+                    "No extra characters, whitespace, or text before/after.\n"
+                )
 
             print(f"\n=== DEBUG INFO FOR STUDENT {student_id}, QUESTION {question_id} ===")
             print(f"Test cases loaded: {len(question_test_cases)}")

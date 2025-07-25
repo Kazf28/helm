@@ -37,106 +37,90 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                 skipped_insufficient_data += 1
                 continue
 
-            first = student_df.iloc[0]
-            second = student_df.iloc[1]
-            third = student_df.iloc[2]
-            target = student_df.iloc[3]
+            # take exactly the first 4 attempts
+            attempts = student_df.iloc[:4]
 
-            # Check if target question has test cases BEFORE processing
-            target_question_id = target.get("question_unittest_id", None)
-            if not target_question_id or str(target_question_id) not in available_question_ids:
-                skipped_no_tests += 1
-                print(f"SKIPPING Student {student_id}, Question {target_question_id}: No test cases available")
-                continue
+            # rotate through each as target
+            for idx in range(4):
+                target = attempts.iloc[idx]
+                examples = [attempts.iloc[i] for i in range(4) if i != idx]
 
-            # Get test cases for this question (we know they exist now)
-            question_test_cases = []
-            tc_parsing_success = True
+                # 1) skip if no tests available
+                tqid = target.get("question_unittest_id", None)
+                if not tqid or str(tqid) not in available_question_ids:
+                    skipped_no_tests += 1
+                    print(f"SKIPPING Student {student_id}, Question {tqid}: No test cases available")
+                    continue
 
-            for testcase_str in target["question_unittests"].split("Unittest")[1:]:
-                testcase_str = testcase_str[testcase_str.find(":") + 1 :]
-                input_idx = testcase_str.find("Input:")
-                std_in_idx = testcase_str.find("STD input:")
-                output_idx = testcase_str.find("Output:")
-                if input_idx == -1 or std_in_idx == -1 or output_idx == -1:
-                    tc_parsing_success = False
-                    break
+                # 2) parse test cases
+                question_test_cases = []
+                tc_parsing_success = True
+                for s in target["question_unittests"].split("Unittest")[1:]:
+                    body = s[s.find(":") + 1 :]
+                    i1, i2, i3 = body.find("Input:"), body.find("STD input:"), body.find("Output:")
+                    if -1 in (i1, i2, i3):
+                        tc_parsing_success = False
+                        break
+                    question_test_cases.append({
+                        "input":  body[i1+6 : i2].strip(),
+                        "std_in": body[i2+10: i3].strip(),
+                        "output": body[i3+7 :].strip(),
+                    })
+                if not tc_parsing_success:
+                    skipped_no_tests += 1
+                    print(f"SKIPPING Student {student_id}, Question {tqid}: Empty test cases")
+                    continue
 
-                testcase = {
-                    "input": testcase_str[input_idx + 6 : std_in_idx].strip(),
-                    "std_in": testcase_str[std_in_idx + 10 : output_idx].strip(),
-                    "output": testcase_str[output_idx + 7 :].strip(),
-                }
-                question_test_cases.append(testcase)
+                # 3) enforce minimum number of cases
+                if len(question_test_cases) < self.num_testcases:
+                    continue
+                if self.num_testcases >= 0:
+                    question_test_cases = question_test_cases[: self.num_testcases]
 
-            if not tc_parsing_success:
-                print(f"SKIPPING Student {student_id}, Question {target_question_id}: Empty test cases")
-                continue
+                # 4) parse correctness pattern
+                pat = target.get("pass", None)
+                if pat is not None:
+                    main_part = int(pat)
+                    student_correctness_list = [int(ch) for ch in str(main_part)]
+                else:
+                    student_correctness_list = []
 
-            if len(question_test_cases) < self.num_testcases:
-                # If not enough test cases, skip this question
-                continue
-            if self.num_testcases >= 0:
-                # If more than one test case is requested, only take the first ones
-                question_test_cases = question_test_cases[: self.num_testcases]
+                # log accepted instance
+                print(f"\n=== ACCEPTED INSTANCE: Student {student_id}, Question {tqid} ===")
+                print(f"Test cases loaded: {len(question_test_cases)}")
+                print(f"Student correctness pattern: {student_correctness_list}")
+                print(f"Question name: {target.get('question_name', 'MISSING')}")
 
-            # Get student pass pattern for the target question
-            student_correctness_pattern = target.get("pass", None)
-            if student_correctness_pattern is not None:
-                main_part = int(student_correctness_pattern)
-                # Convert each character to an int
-                student_correctness_list = [int(ch) for ch in str(main_part)]
-            else:
-                student_correctness_list = []
-
-            print(f"\n=== ACCEPTED INSTANCE: Student {student_id}, Question {target_question_id} ===")
-            print(f"Test cases loaded: {len(question_test_cases)}")
-            print(f"Student correctness pattern: {student_correctness_list}")
-            print(f"Question name: {target.get('question_name', 'MISSING')}")
-
-            prompt = (
-                f"Week: {target['week']}\n"
-                f"Topic: {target['topic']}\n\n"
-                "Example 1:\n"
-                f"Question: {first['question_name']} — {first['question_text']}\n"
-                "Template:\n"
-                f"{first['question_template']}\n"
-                "Your Code:\n"
-                f"{first['response']}\n\n"
-                "Example 2:\n"
-                f"Question: {second['question_name']} — {second['question_text']}\n"
-                "Template:\n"
-                f"{second['question_template']}\n"
-                "Your Code:\n"
-                f"{second['response']}\n\n"
-                "Example 3:\n"
-                f"Question: {third['question_name']} — {third['question_text']}\n"
-                "Template:\n"
-                f"{third['question_template']}\n"
-                "Your Code:\n"
-                f"{third['response']}\n\n"
-                "Now, using that same student's coding style, attempt this:\n"
-                f"Question: {target['question_name']} — {target['question_text']}\n\n"
-                f"Unit Test Input: {question_test_cases}\n\n"
-                if question_test_cases
-                else ""
-                "Template:\n"
-                f"{target['question_template']}\n\n"
-                "Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template."  
-                "– Do NOT reproduce any part of the template"  
-                "– Do NOT emit `int main()` (it’s already declared)"  
-                "– Ensure your code is correct, handles all edge cases, and includes any needed class definitions"  
-                "– Match the student’s usual efficiency style: if their past solutions are inefficient, mirror that; if they write efficient code, do the same."
-                "IMPORTANT:"  
-                "Your entire response must be exactly one Markdown C++ code-block."  
-                "1. The first line of your output must be:"
-                "```cpp"
-                "2. The last line of your output must be:"
-                "```"
-                "3. No extra characters, whitespace, or text may appear before the opening ```cpp or after the closing ```."  
-                "Your output will therefore match this regex exactly:"
-                "^```cpp\n([\s\S]+)\n```$"
-            )
+                # 5) build prompt with three examples + this target
+                prompt = (
+                    f"Week: {target['week']}\n"
+                    f"Topic: {target['topic']}\n\n"
+                )
+                for n, ex in enumerate(examples, start=1):
+                    prompt += (
+                        f"Example {n}:\n"
+                        f"Question: {ex['question_name']} — {ex['question_text']}\n"
+                        "Template:\n"
+                        f"{ex['question_template']}\n"
+                        "Your Code:\n"
+                        f"{ex['response']}\n\n"
+                    )
+                prompt += (
+                    "Now, using that same student's coding style, attempt this:\n"
+                    f"Question: {target['question_name']} — {target['question_text']}\n\n"
+                    + (f"Unit Test Input: {question_test_cases}\n\n" if question_test_cases else "")
+                    + "Template:\n"
+                    f"{target['question_template']}\n\n"
+                    "Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template.  "
+                    "– Do NOT reproduce any part of the template  "
+                    "– Do NOT emit `int main()` (it’s already declared)  "
+                    "– Ensure your code is correct, handles all edge cases, and includes any needed class definitions  "
+                    "– Match the student’s usual efficiency style.\n\n"
+                    "IMPORTANT: your entire response must be exactly one Markdown C++ code‑block:\n"
+                    "1. First line: ```cpp\n"
+                    "2. Last line: ```\n"
+                    "No extra whitespace or text before/after.\n"
+                )
 
             instances.append(
                 Instance(
