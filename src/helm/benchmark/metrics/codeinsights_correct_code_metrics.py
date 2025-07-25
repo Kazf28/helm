@@ -267,7 +267,7 @@ class CodeInsightsFunctionalCorrectnessMetric(Metric):
         self.timeout = timeout
         self.max_workers = max_workers
 
-    def d(
+    def evaluate_generation(
         self,
         adapter_spec: AdapterSpec,
         request_state: RequestState,
