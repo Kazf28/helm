@@ -44,7 +44,7 @@ def compile_code(i, temp_dir, timeout=10):
         return None
 
 
-def parallel_compile(codes, temp_dir, timeout=10, max_workers=4):
+def sequential_compile(codes, temp_dir, timeout=10):
     """
     Compiles multiple C++ codes in parallel.
 
@@ -94,7 +94,7 @@ def run_executable(executable, std_in, timeout=10):
         return (1, "")  # Non-zero return code for errors
 
 
-def parallel_run_executables(executables, std_inputs, timeout=10, max_workers=4):
+def sequential_run_executables(executables, std_inputs, timeout=10):
     """
     Runs multiple executables in parallel with a timeout.
 
@@ -191,7 +191,7 @@ class CPPEvaluator:
                 file.write(code)
 
         # Compile the C++ code
-        executables = compile_code(codes, temp_dir, timeout=self.timeout)
+        executables = sequential_compile(codes, temp_dir, timeout=self.timeout)
 
         return executables, temp_dir
 
@@ -211,7 +211,7 @@ class CPPEvaluator:
         executables, temp_dir = self.write_and_compile_code(codes)
         list_result = []
 
-        executation_results = run_executable(
+        executation_results = sequential_run_executables(
             executables, self.std_inputs, timeout=self.timeout
         )
         for i, testcase in enumerate(self.testcases):

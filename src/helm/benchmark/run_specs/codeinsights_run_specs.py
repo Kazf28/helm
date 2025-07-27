@@ -177,9 +177,9 @@ def get_codeinsights_edge_case_run_spec(tpr: float = 0.0, num_testcases: int = 1
 
     adapter_spec = get_generation_adapter_spec(
         instructions=instruction,
-        output_noun="Your code",
+        output_noun="Your response",
         stop_sequences=[],
-        max_tokens=4000,
+        max_tokens=5,
         temperature=tpr,
     )
 
