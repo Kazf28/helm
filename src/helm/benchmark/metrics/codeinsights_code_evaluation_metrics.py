@@ -317,20 +317,19 @@ class UnitTestAlignmentMetric(CodeInsightsFunctionalCorrectnessMetric):
         Calculate alignment metrics between LLM and student correctness patterns.
         """
         # Ensure patterns have same length (pad with 0s if needed)
-        max_length = max(len(llm_pattern), len(student_pattern))
-        llm_padded = llm_pattern + [0] * (max_length - len(llm_pattern))
-        student_padded = student_pattern + [0] * (max_length - len(student_pattern))
+        if len(llm_pattern) != len(student_pattern):
+            raise RuntimeError("The number of LLM testcases and students's do not match!")
 
         # Calculate alignment metrics
-        total_tests = max_length
-        exact_matches = sum(1 for i in range(total_tests) if llm_padded[i] == student_padded[i])
+        total_tests = len(llm_pattern)
+        exact_matches = sum(1 for i in range(total_tests) if llm_pattern[i] == student_pattern[i])
 
         # Alignment ratio (percentage of matching tests)
         alignment_ratio = exact_matches / total_tests if total_tests > 0 else 0.0
 
         # Calculate LLM and student pass rates
-        llm_pass_rate = sum(llm_padded) / total_tests if total_tests > 0 else 0.0
-        student_pass_rate = sum(student_padded) / total_tests if total_tests > 0 else 0.0
+        llm_pass_rate = sum(llm_pattern) / total_tests if total_tests > 0 else 0.0
+        student_pass_rate = sum(student_pattern) / total_tests if total_tests > 0 else 0.0
 
         print(f"Alignment calculation: {exact_matches}/{total_tests} = {alignment_ratio}")
 

@@ -211,9 +211,7 @@ class CPPEvaluator:
         executables, temp_dir = self.write_and_compile_code(codes)
         list_result = []
 
-        executation_results = sequential_run_executables(
-            executables, self.std_inputs, timeout=self.timeout
-        )
+        executation_results = sequential_run_executables(executables, self.std_inputs, timeout=self.timeout)
         for i, testcase in enumerate(self.testcases):
             if executation_results[i][0] != 0:
                 list_result.append(0)
@@ -239,6 +237,7 @@ class CPPEvaluator:
             "score": sum(list_result) / len(list_result),
             "testcases": list_result,
         }
+
 
 class CodeInsightsFunctionalCorrectnessMetric(Metric):
     """
@@ -329,27 +328,29 @@ class CodeInsightsFunctionalCorrectnessMetric(Metric):
         - Trims preambles
         - Removes student's main()
         """
-        code_blocks = re.findall(r"```(?:c\+\+)?\n(.*?)```", model_code, flags=re.DOTALL)
+        code_blocks = re.findall(r"```cpp\n(.*?)\n```", model_code, flags=re.DOTALL)
         if code_blocks:
             model_code = code_blocks[0].strip()  # Use the first code block
             print("[Markdown extraction] Used fenced code blocks.")
+        else:
+            model_code = model_code.strip()
 
-        # Post-processing
-        # Comment out as a testing - 7/3/2025
-        lines = model_code.strip().splitlines()
-        start_keywords = ("#include", "using namespace")
-        for i, line in enumerate(lines):
-            if any(line.strip().startswith(k) for k in start_keywords):
-                lines[i] = ""
-        code = "\n".join(lines).strip()
-        if "int main" in code:
-            code = code.split("int main")[0].strip()
+        # Post-processing -- NO NEED TO REMOVE #include and using as they do not cause errors
+        # lines = model_code.strip().splitlines()
+        # start_keywords = ("#include", "using namespace")
+        # for i, line in enumerate(lines):
+        #     if any(line.strip().startswith(k) for k in start_keywords):
+        #         lines[i] = ""
+        # code = "\n".join(lines).strip()
+
+        if "int main" in model_code:
+            model_code = model_code.split("int main")[0].strip()
 
         # --- Final touch ---
-        if "print(" in code and "void print()" not in code and "print()" not in code:
+        if "print(" in model_code and "void print()" not in model_code and "print()" not in model_code:
             print("⚠️ WARNING: `print()` is called in test input but not defined.")
 
-        return code
+        return model_code
 
     def _create_failure_stats(self, error_message: str) -> List[Stat]:
         """
