@@ -11,7 +11,9 @@ from helm.benchmark.metrics.codeinsights_metric_specs import (
 
 
 @run_spec_function("codeinsights_correct_code")
-def get_codeinsights_correct_code_run_spec(tpr: float = 0.0, num_testcases: int = 1, stop_sequence = ['\n```']) -> RunSpec:
+def get_codeinsights_correct_code_run_spec(
+    tpr: float = 0.0, num_testcases: int = 1, stop_sequence=["\n```"]
+) -> RunSpec:
     scenario_spec = ScenarioSpec(
         class_name="helm.benchmark.scenarios.codeinsights_correct_code_scenario.CodeInsightsCorrectCodeScenario",
         args={"num_testcases": num_testcases},
@@ -45,7 +47,9 @@ def get_codeinsights_correct_code_run_spec(tpr: float = 0.0, num_testcases: int 
 
 
 @run_spec_function("codeinsights_student_coding")
-def get_codeinsights_student_coding_run_spec(tpr: float = 0.0, num_testcases: int = 1, stop_sequence = ['\n```']) -> RunSpec:
+def get_codeinsights_student_coding_run_spec(
+    tpr: float = 0.0, num_testcases: int = 1, stop_sequence=["\n```"]
+) -> RunSpec:
     scenario_spec = ScenarioSpec(
         class_name="helm.benchmark.scenarios.codeinsights_student_coding_scenario.CodeInsightsStudentCodingScenario",
         args={"num_testcases": num_testcases},
@@ -80,7 +84,9 @@ def get_codeinsights_student_coding_run_spec(tpr: float = 0.0, num_testcases: in
 
 
 @run_spec_function("codeinsights_student_mistake")
-def get_codeinsights_student_mistake_run_spec(tpr: float = 0.0, num_testcases: int = 1, stop_sequence = ['\n```']) -> RunSpec:
+def get_codeinsights_student_mistake_run_spec(
+    tpr: float = 0.0, num_testcases: int = 1, stop_sequence=["\n```"]
+) -> RunSpec:
     scenario_spec = ScenarioSpec(
         class_name="helm.benchmark.scenarios.codeinsights_student_mistake_scenario.CodeInsightsStudentMistakeScenario",
         args={"num_testcases": num_testcases},
@@ -113,7 +119,9 @@ def get_codeinsights_student_mistake_run_spec(tpr: float = 0.0, num_testcases: i
 
 
 @run_spec_function("codeinsights_code_efficiency")
-def get_codeinsights_code_efficiency_run_spec(tpr: float = 0.0, num_testcases: int = 1, stop_sequence = ['\n```']) -> RunSpec:
+def get_codeinsights_code_efficiency_run_spec(
+    tpr: float = 0.0, num_testcases: int = 1, stop_sequence=["\n```"]
+) -> RunSpec:
     """
     Run specification for code efficiency evaluation scenario.
 

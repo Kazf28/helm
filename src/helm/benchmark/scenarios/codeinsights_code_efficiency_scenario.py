@@ -13,7 +13,9 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario4_data.csv")
+        df = pd.read_csv(
+            "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario4_data.csv", dtype={"pass": "str"}
+        )
 
         instances = []
         skipped_no_tests = 0
@@ -45,29 +47,38 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                     if -1 in (i1, i2, i3):
                         tc_parsing_success = False
                         break
-                    question_test_cases.append({
-                        "input":  body[i1+6 : i2].strip(),
-                        "std_in": body[i2+10: i3].strip(),
-                        "output": body[i3+7 :].strip(),
-                    })
+                    question_test_cases.append(
+                        {
+                            "input": body[i1 + 6 : i2].strip(),
+                            "std_in": body[i2 + 10 : i3].strip(),
+                            "output": body[i3 + 7 :].strip(),
+                        }
+                    )
                 if not tc_parsing_success:
                     skipped_no_tests += 1
                     print(f"SKIPPING Student {student_id}, Question {question_id}: Empty test cases")
                     continue
 
-                # 3) enforce minimum number of cases
-                if len(question_test_cases) < self.num_testcases:
+                # parse the target's pass/fail pattern
+                correctness = target.get("pass", "")
+                if "." in correctness:
+                    raise RuntimeError("The type of `pass` column should be string!")
+                student_correctness_list = [int(ch) for ch in correctness]
+
+                if (
+                    not tc_parsing_success
+                    or len(question_test_cases) < self.num_testcases
+                    or len(student_correctness_list) < self.num_testcases
+                ):
                     continue
+
                 if self.num_testcases >= 0:
                     question_test_cases = question_test_cases[: self.num_testcases]
+                    student_correctness_list = student_correctness_list[: self.num_testcases]
 
-                # 4) parse correctness pattern
-                pat = target.get("pass", None)
-                if pat is not None:
-                    main_part = int(pat)
-                    student_correctness_list = [int(ch) for ch in str(main_part)]
-                else:
-                    student_correctness_list = []
+                # Ensure that the number of testcase matches with the student results
+                if len(question_test_cases) != len(student_correctness_list) or len(question_test_cases) == 0:
+                    continue
 
                 # log accepted instance
                 print(f"\n=== ACCEPTED INSTANCE: Student {student_id}, Question {question_id} ===")
@@ -76,10 +87,7 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                 print(f"Question name: {target.get('question_name', 'MISSING')}")
 
                 # 5) build prompt with three examples + this target
-                prompt = (
-                    f"Week: {target['week']}\n"
-                    f"Topic: {target['topic']}\n\n"
-                )
+                prompt = f"Week: {target['week']}\n" f"Topic: {target['topic']}\n\n"
                 for n, ex in enumerate(examples, start=1):
                     prompt += (
                         f"Example {n}:\n"
@@ -91,8 +99,7 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
                     )
                 prompt += (
                     "Now, using that same student's coding style, attempt this:\n"
-                    f"Question: {target['question_name']} — {target['question_text']}\n\n"
-                    + "Template:\n"
+                    f"Question: {target['question_name']} — {target['question_text']}\n\n" + "Template:\n"
                     f"{target['question_template']}\n\n"
                     "Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template.  "
                     "– Do NOT reproduce any part of the template  "
@@ -126,7 +133,7 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
         print(f"Total instances created: {len(instances)}")
         print(f"Skipped (insufficient data): {skipped_insufficient_data}")
         print(f"Skipped (no test cases): {skipped_no_tests}")
-        print(f"Available test case question IDs: {len(available_question_ids)}")
+        # print(f"Available test case question IDs: {len(available_question_ids)}")
 
         if instances:
             print("Sample created instances:")

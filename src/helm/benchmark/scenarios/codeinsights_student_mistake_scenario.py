@@ -13,7 +13,9 @@ class CodeInsightsStudentMistakeScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario3_data.csv")
+        df = pd.read_csv(
+            "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario3_data.csv", dtype={"pass": "str"}
+        )
         student_topic = pd.read_csv(
             "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/student_performace_by_topic.csv"
         )
@@ -39,7 +41,7 @@ class CodeInsightsStudentMistakeScenario(Scenario):
 
             # rotate so each of the 4 becomes the “target” once
             for idx in range(4):
-                target   = attempts.iloc[idx]
+                target = attempts.iloc[idx]
                 examples = [attempts.iloc[i] for i in range(4) if i != idx]
 
                 # skip if no test‐cases available
@@ -47,26 +49,41 @@ class CodeInsightsStudentMistakeScenario(Scenario):
 
                 # parse test cases
                 question_test_cases = []
-                tc_success = True
+                tc_parsing_success = True
                 for s in target["question_unittests"].split("Unittest")[1:]:
-                    body = s[s.find(":")+1:]
+                    body = s[s.find(":") + 1 :]
                     i1, i2, i3 = body.find("Input:"), body.find("STD input:"), body.find("Output:")
                     if -1 in (i1, i2, i3):
-                        tc_success = False
+                        tc_parsing_success = False
                         break
-                    question_test_cases.append({
-                        "input":  body[i1+6 : i2].strip(),
-                        "std_in": body[i2+10: i3].strip(),
-                        "output": body[i3+7 :].strip(),
-                    })
-                if not tc_success or len(question_test_cases) < self.num_testcases:
+                    question_test_cases.append(
+                        {
+                            "input": body[i1 + 6 : i2].strip(),
+                            "std_in": body[i2 + 10 : i3].strip(),
+                            "output": body[i3 + 7 :].strip(),
+                        }
+                    )
+
+                # parse the target's pass/fail pattern
+                correctness = target.get("pass", "")
+                if "." in correctness:
+                    raise RuntimeError("The type of `pass` column should be string!")
+                student_correctness_list = [int(ch) for ch in correctness]
+
+                if (
+                    not tc_parsing_success
+                    or len(question_test_cases) < self.num_testcases
+                    or len(student_correctness_list) < self.num_testcases
+                ):
                     continue
+
                 if self.num_testcases >= 0:
                     question_test_cases = question_test_cases[: self.num_testcases]
+                    student_correctness_list = student_correctness_list[: self.num_testcases]
 
-                # parse correctness (not used in prompt here, but you can log it)
-                pat = target.get("pass")
-                student_correctness_list = [int(ch) for ch in str(int(pat))] if pat else []
+                # Ensure that the number of testcase matches with the student results
+                if len(question_test_cases) != len(student_correctness_list) or len(question_test_cases) == 0:
+                    continue
 
                 # build the few‐shot + target prompt
                 prompt = (
@@ -89,8 +106,7 @@ class CodeInsightsStudentMistakeScenario(Scenario):
                 prompt += (
                     "=== New Target Problem ===\n"
                     f"Week: {target['week']}, Topic: {target['topic']}\n"
-                    f"Question: {target['question_name']} — {target['question_text']}\n"
-                    + "Template:\n"
+                    f"Question: {target['question_name']} — {target['question_text']}\n" + "Template:\n"
                     f"{target['question_template']}\n\n"
                     "⚠**Instructions:**\n"
                     "1. Mimic your own coding style, naming conventions, indentation, and typical error patterns from the examples.\n"
