@@ -153,15 +153,6 @@ class CodeInsightsEdgeCaseScenario(Scenario):
         print(f"Skipped (no test cases): {skipped_no_tests}")
         print(f"Available test case question IDs: {len(available_question_ids)}")
 
-        if len(instances) >= 5:
-            print("Sample created instances:")
-            for i, inst in enumerate(instances[:5]):
-                if inst.extra_data is None:
-                    test_count = 0
-                else:
-                    test_count = len(inst.extra_data.get("test_cases", []))
-                print(f"  {inst.id}: {test_count} test cases")
-
         return instances
 
     def _load_test_cases(self):

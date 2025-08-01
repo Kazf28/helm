@@ -13,7 +13,7 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario4_data.csv")
+        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario4_full_data.csv")
 
         instances = []
         skipped_no_tests = 0
@@ -126,15 +126,5 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
         print(f"Total instances created: {len(instances)}")
         print(f"Skipped (insufficient data): {skipped_insufficient_data}")
         print(f"Skipped (no test cases): {skipped_no_tests}")
-        print(f"Available test case question IDs: {len(available_question_ids)}")
-
-        if instances:
-            print("Sample created instances:")
-            for i, inst in enumerate(instances[:5]):
-                if inst.extra_data is None:
-                    test_count = 0
-                else:
-                    test_count = len(inst.extra_data.get("test_cases", []))
-                print(f"  {inst.id}: {test_count} test cases")
 
         return instances

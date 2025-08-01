@@ -13,7 +13,7 @@ class CodeInsightsStudentCodingScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario1_2_data.csv")
+        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario2_full_data.csv")
         student_topic = pd.read_csv(
             "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/student_performace_by_topic.csv"
         )
@@ -82,7 +82,6 @@ class CodeInsightsStudentCodingScenario(Scenario):
                 prompt += (
                     "Now, using that same student style, attempt this:\n"
                     f"Question: {target['question_name']} — {target['question_text']}\n"
-                    f"Unit Test Input: {question_test_cases}\n\n"
                     f"Template:\n{target['question_template']}\n\n"
                     "Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template.  "
                     "– Do NOT reproduce any part of the template  "
