@@ -1,6 +1,6 @@
 from helm.benchmark.scenarios.scenario import Scenario, Instance, Input, Output, Reference, VALID_SPLIT, CORRECT_TAG
+from huggingface_hub import hf_hub_download
 import pandas as pd
-import requests
 
 
 class CodeInsightsCodeEfficiencyScenario(Scenario):
@@ -13,9 +13,14 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv(
-            "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario4_data.csv", dtype={"pass": "str"}
+        data_file = hf_hub_download(
+            repo_id="CodeInsightTeam/code_insights_csv",
+            repo_type="dataset",
+            filename="codeinsights_llm_simulation/data/Scenario4_full_data.csv",
+            revision="b2ed07387d109af257089734a14fd7beee273bd9",
         )
+
+        df = pd.read_csv(data_file, dtype={"pass": "str"})
 
         instances = []
         skipped_no_tests = 0
@@ -133,7 +138,6 @@ class CodeInsightsCodeEfficiencyScenario(Scenario):
         print(f"Total instances created: {len(instances)}")
         print(f"Skipped (insufficient data): {skipped_insufficient_data}")
         print(f"Skipped (no test cases): {skipped_no_tests}")
-        # print(f"Available test case question IDs: {len(available_question_ids)}")
 
         if instances:
             print("Sample created instances:")

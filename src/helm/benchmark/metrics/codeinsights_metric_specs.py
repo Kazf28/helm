@@ -34,7 +34,7 @@ def get_code_efficiency_metric_specs(
             },
         ),
         MetricSpec(  # ➋ NEW metric → AST + CodeBERT
-            class_name="helm.benchmark.metrics.codeinsights_code_evaluation_metrics.CodeInsightsCodeEvaluationMetric",
+            class_name="helm.benchmark.metrics.codeinsights_code_evaluation_metrics.CodeInsightsComprehensiveCodeEvaluationMetric",
             args={"use_codebert": use_codebert},
         ),
     ]

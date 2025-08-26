@@ -1,6 +1,6 @@
 from helm.benchmark.scenarios.scenario import Scenario, Instance, Input, Output, Reference, VALID_SPLIT, CORRECT_TAG
+from huggingface_hub import hf_hub_download
 import pandas as pd
-import requests
 
 
 class CodeInsightsStudentMistakeScenario(Scenario):
@@ -13,12 +13,20 @@ class CodeInsightsStudentMistakeScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv(
-            "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario3_data.csv", dtype={"pass": "str"}
+        data_file = hf_hub_download(
+            repo_id="CodeInsightTeam/code_insights_csv",
+            repo_type="dataset",
+            filename="codeinsights_llm_simulation/data/Scenario3_full_data.csv",
+            revision="b2ed07387d109af257089734a14fd7beee273bd9",
         )
-        student_topic = pd.read_csv(
-            "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/student_performace_by_topic.csv"
+        df = pd.read_csv(data_file, dtype={"pass": "str"})
+        student_topic_file = hf_hub_download(
+            repo_id="CodeInsightTeam/code_insights_csv",
+            repo_type="dataset",
+            filename="codeinsights_llm_simulation/data/student_performace_by_topic.csv",
+            revision="b2ed07387d109af257089734a14fd7beee273bd9",
         )
+        student_topic = pd.read_csv(student_topic_file)
 
         instances = []
         for student_id, student_df in df.groupby("student_id"):

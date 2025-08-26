@@ -1,4 +1,5 @@
 from helm.benchmark.scenarios.scenario import Scenario, Instance, Input, VALID_SPLIT
+from huggingface_hub import hf_hub_download
 import pandas as pd
 
 
@@ -12,7 +13,14 @@ class CodeInsightsCorrectCodeScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario1_2_data.csv")
+        data_file = hf_hub_download(
+            repo_id="CodeInsightTeam/code_insights_csv",
+            repo_type="dataset",
+            filename="codeinsights_llm_simulation/data/Scenario1_full_data.csv",
+            revision="b2ed07387d109af257089734a14fd7beee273bd9",
+        )
+
+        df = pd.read_csv(data_file, dtype={"pass": "str"})
 
         # Load test cases (unit tests)
         instances = []
