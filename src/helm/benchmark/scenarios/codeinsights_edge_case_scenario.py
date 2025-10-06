@@ -13,7 +13,9 @@ class CodeInsightsEdgeCaseScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario5_data.csv")
+        df = pd.read_csv(
+            "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario5_data.csv", dtype={"pass": "str"}
+        )
 
         student_topic = pd.read_csv(
             "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/student_performace_by_topic.csv"
@@ -47,7 +49,7 @@ class CodeInsightsEdgeCaseScenario(Scenario):
                 continue
 
             # Get test cases for this question (we know they exist now)
-            target_test_cases = []
+            question_test_cases = []
             tc_parsing_success = True
 
             for testcase_str in target["question_unittests"].split("Unittest")[1:]:
@@ -64,29 +66,30 @@ class CodeInsightsEdgeCaseScenario(Scenario):
                     "std_in": testcase_str[std_in_idx + 10 : output_idx].strip(),
                     "output": testcase_str[output_idx + 7 :].strip(),
                 }
-                target_test_cases.append(testcase)
+                question_test_cases.append(testcase)
 
-            # Verify test cases are not empty
-            if not tc_parsing_success:
+            # parse the target's pass/fail pattern
+            correctness = target.get("pass", "")
+            if "." in correctness:
+                raise RuntimeError("The type of `pass` column should be string!")
+            student_correctness_list = [int(ch) for ch in correctness]
+
+            if (
+                not tc_parsing_success
+                or len(question_test_cases) < self.num_testcases
+                or len(student_correctness_list) < self.num_testcases
+            ):
                 skipped_no_tests += 1
                 print(f"SKIPPING Student {student_id}, Question {target_question_id}: Empty test cases")
                 continue
 
-            if len(target_test_cases) < self.num_testcases:
-                # If not enough test cases, skip this question
-                continue
             if self.num_testcases >= 0:
-                # If more than one test case is requested, only take the first ones
-                target_test_cases = target_test_cases[: self.num_testcases]
+                question_test_cases = question_test_cases[: self.num_testcases]
+                student_correctness_list = student_correctness_list[: self.num_testcases]
 
-            # Get student pass pattern for the target question
-            student_correctness_pattern = target.get("pass", None)
-            if student_correctness_pattern is not None:
-                main_part = int(student_correctness_pattern)
-                # Convert each character to an int
-                student_correctness_list = [int(ch) for ch in str(main_part)]
-            else:
-                student_correctness_list = []
+            # Ensure that the number of testcase matches with the student results
+            if len(question_test_cases) != len(student_correctness_list) or len(question_test_cases) == 0:
+                continue
 
             # Student specific topic performance in previous attempts
             student_level_prompt = f"Student {student_id} has the following performance across topics:\n"
@@ -102,9 +105,14 @@ class CodeInsightsEdgeCaseScenario(Scenario):
                 )
 
             print(f"\n=== ACCEPTED INSTANCE: Student {student_id}, Question {target_question_id} ===")
-            print(f"Test cases loaded: {len(target_test_cases)}")
+            print(f"Test cases loaded: {len(question_test_cases)}")
             print(f"Student correctness pattern: {student_correctness_list}")
             print(f"Question name: {target.get('question_name', 'MISSING')}")
+
+            unitest_str = ""
+            for tid, testcase in enumerate(question_test_cases):
+                local_tc_info = {"code": testcase["input"], "std_input": testcase["std_in"]}
+                unitest_str += f"Unit test {tid}:\n" + str(local_tc_info) + "\n"
 
             prompt = (
                 "You are analyzing a student’s likely mistakes on an upcoming programming problem.\n"
@@ -117,9 +125,7 @@ class CodeInsightsEdgeCaseScenario(Scenario):
                 f"Week: {target['week']}\n"
                 f"Topic: {target['topic']}\n\n"
                 f"Question: {target['question_name']} — {target['question_text']}\n"
-                f"Unit Tests: {target_test_cases}\n"
-                if target_test_cases
-                else ""
+                f"{unitest_str}"
                 "Think silently about:\n"
                 "• Which test seems hardest for the given topic?\n"
                 "• Where has the student historically struggled?\n"
@@ -129,7 +135,7 @@ class CodeInsightsEdgeCaseScenario(Scenario):
                 "Your **entire** response must be that integer—no code blocks, no explanations, no extra whitespace or punctuation."
                 "****************************************"
             )
-            
+
             instances.append(
                 Instance(
                     id=f"{student_id}_{target['question_unittest_id']}",
@@ -137,7 +143,7 @@ class CodeInsightsEdgeCaseScenario(Scenario):
                     references=[Reference(output=Output(text=target["response"]), tags=[CORRECT_TAG])],
                     extra_data={
                         "question_template": target["question_template"],
-                        "test_cases": target_test_cases,
+                        "test_cases": question_test_cases,
                         "question_id": str(target_question_id),
                         "question_name": target.get("question_name", ""),
                         "student_id": str(student_id),

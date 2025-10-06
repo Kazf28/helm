@@ -1,4 +1,5 @@
 from helm.benchmark.scenarios.scenario import Scenario, Instance, Input, VALID_SPLIT
+from huggingface_hub import hf_hub_download
 import pandas as pd
 
 
@@ -12,7 +13,14 @@ class CodeInsightsCorrectCodeScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario1_full_data.csv")
+        data_file = hf_hub_download(
+            repo_id="CodeInsightTeam/code_insights_csv",
+            repo_type="dataset",
+            filename="codeinsights_llm_simulation/data/Scenario1_full_data.csv",
+            revision="b2ed07387d109af257089734a14fd7beee273bd9",
+        )
+
+        df = pd.read_csv(data_file, dtype={"pass": "str"})
 
         # Load test cases (unit tests)
         instances = []
@@ -37,12 +45,10 @@ class CodeInsightsCorrectCodeScenario(Scenario):
                 }
                 question_test_cases.append(testcase)
 
-            if not tc_parsing_success:
-                continue
-
-            if len(question_test_cases) < self.num_testcases:
+            if not tc_parsing_success or len(question_test_cases) < self.num_testcases:
                 # If not enough test cases, skip this question
                 continue
+
             if self.num_testcases >= 0:
                 # If more than one test case is requested, only take the first ones
                 question_test_cases = question_test_cases[: self.num_testcases]
@@ -51,17 +57,17 @@ class CodeInsightsCorrectCodeScenario(Scenario):
                 f"Question: {target['question_name']} — {target['question_text']}\n\n"
                 "Template:\n"
                 f"{target['question_template']}\n\n"
-                "Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template."  
-                "– Do NOT reproduce any part of the template"  
-                "– Do NOT emit `int main()` (it’s already declared)"  
-                "– Ensure your code is correct, efficient, handles all edge cases, and includes any needed class definitions"  
-                "IMPORTANT:"  
-                "Your entire response must be exactly one Markdown C++ code-block."  
+                "Provide ONLY your C++ implementation that will replace the {{ STUDENT_ANSWER }} block in the template."
+                "– Do NOT reproduce any part of the template"
+                "– Do NOT emit `int main()` (it’s already declared)"
+                "– Ensure your code is correct, efficient, handles all edge cases, and includes any needed class definitions"
+                "IMPORTANT:"
+                "Your entire response must be exactly one Markdown C++ code-block."
                 "1. The first line of your output must be:"
                 "```cpp"
                 "2. The last line of your output must be:"
                 "```"
-                "3. No extra characters, whitespace, or text may appear before the opening ```cpp or after the closing ```."  
+                "3. No extra characters, whitespace, or text may appear before the opening ```cpp or after the closing ```."
                 "Your output will therefore match this regex exactly:"
                 "^```cpp\n([\s\S]+)\n```$"
             )

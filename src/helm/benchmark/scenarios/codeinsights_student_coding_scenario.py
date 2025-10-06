@@ -1,6 +1,6 @@
 from helm.benchmark.scenarios.scenario import Scenario, Instance, Input, Output, Reference, VALID_SPLIT, CORRECT_TAG
+from huggingface_hub import hf_hub_download
 import pandas as pd
-import requests
 
 
 class CodeInsightsStudentCodingScenario(Scenario):
@@ -13,10 +13,24 @@ class CodeInsightsStudentCodingScenario(Scenario):
         self.num_testcases = num_testcases
 
     def get_instances(self, output_path: str):
-        df = pd.read_csv("https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/Scenario2_full_data.csv")
-        student_topic = pd.read_csv(
-            "https://huggingface.co/datasets/Kazchoko/my_dataset/resolve/main/student_performace_by_topic.csv"
+        data_file = hf_hub_download(
+            repo_id="CodeInsightTeam/code_insights_csv",
+            repo_type="dataset",
+            filename="codeinsights_llm_simulation/data/Scenario2_full_data.csv",
+            revision="b2ed07387d109af257089734a14fd7beee273bd9",
         )
+        df = pd.read_csv(
+            data_file,
+            dtype={"pass": "str"},
+        )
+
+        student_topic_file = hf_hub_download(
+            repo_id="CodeInsightTeam/code_insights_csv",
+            repo_type="dataset",
+            filename="codeinsights_llm_simulation/data/student_performace_by_topic.csv",
+            revision="b2ed07387d109af257089734a14fd7beee273bd9",
+        )
+        student_topic = pd.read_csv(student_topic_file)
 
         instances = []
         for student_id, student_df in df.groupby("student_id"):
@@ -47,23 +61,40 @@ class CodeInsightsStudentCodingScenario(Scenario):
                 tc_parsing_success = True
                 for testcase_str in target["question_unittests"].split("Unittest")[1:]:
                     body = testcase_str[testcase_str.find(":") + 1 :]
-                    i1 = body.find("Input:"); i2 = body.find("STD input:"); i3 = body.find("Output:")
+                    i1 = body.find("Input:")
+                    i2 = body.find("STD input:")
+                    i3 = body.find("Output:")
                     if -1 in (i1, i2, i3):
                         tc_parsing_success = False
                         break
-                    question_test_cases.append({
-                        "input": body[i1+6 : i2].strip(),
-                        "std_in": body[i2+10: i3].strip(),
-                        "output": body[i3+7 :].strip(),
-                    })
-                if not tc_parsing_success or len(question_test_cases) < self.num_testcases:
-                    continue
-                if self.num_testcases >= 0:
-                    question_test_cases = question_test_cases[:self.num_testcases]
+                    question_test_cases.append(
+                        {
+                            "input": body[i1 + 6 : i2].strip(),
+                            "std_in": body[i2 + 10 : i3].strip(),
+                            "output": body[i3 + 7 :].strip(),
+                        }
+                    )
 
                 # parse the target's pass/fail pattern
-                correctness = int(target.get("pass", "0"))
-                student_correctness_list = [int(ch) for ch in str(correctness)]
+                correctness = target.get("pass", "")
+                if "." in correctness:
+                    raise RuntimeError("The type of `pass` column should be string!")
+                student_correctness_list = [int(ch) for ch in correctness]
+
+                if (
+                    not tc_parsing_success
+                    or len(question_test_cases) < self.num_testcases
+                    or len(student_correctness_list) < self.num_testcases
+                ):
+                    continue
+
+                if self.num_testcases >= 0:
+                    question_test_cases = question_test_cases[: self.num_testcases]
+                    student_correctness_list = student_correctness_list[: self.num_testcases]
+
+                # Ensure that the number of testcase matches with the student results
+                if len(question_test_cases) != len(student_correctness_list) or len(question_test_cases) == 0:
+                    continue
 
                 # build the few‐shot prompt
                 prompt = (
